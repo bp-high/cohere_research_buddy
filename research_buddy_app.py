@@ -344,7 +344,7 @@ with tab2:
 
             return output
 
-    if st.button("Read and Index Paper"):
+    if st.button("Read the paper"):
         paper_content = get_paper_content(url=user_input)
 
     if st.session_state.paper_content is not None:
