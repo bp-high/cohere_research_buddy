@@ -32,7 +32,7 @@ embed_model = CohereEmbedding(
 )
 cohere_rerank = CohereRerank(api_key=COHERE_API_KEY, top_n=5)
 st.set_page_config(page_title="Research Buddy: Insights and Q&A on AI Research Papers using Cohere", page_icon="🧐", layout="centered", initial_sidebar_state="auto", menu_items=None)
-st.title(body="Research Buddy📚🤖")
+st.title(body="AI Research Copilot 📚🤖")
 
 
 def initialize_session_state():
