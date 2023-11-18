@@ -53,7 +53,7 @@ def initialize_session_state():
 
 initialize_session_state()
 
-st.header('Read with AI powered by Cohere', divider='rainbow')
+st.header('Read with AI(powered by Cohere)', divider='rainbow')
 st.info("""This Application currently only works with arxiv and acl anthology web links which belong to the format:- 
 
     1) Arxiv:- https://arxiv.org/abs/paper_unique_identifier
@@ -173,7 +173,7 @@ if st.session_state.vector_store is not None:
 st.divider()
 
 
-tab1, tab2 = st.tabs(["Literature-Review", "Read Mode(Powered by Nougat:- Meta)"])
+tab1, tab2 = st.tabs(["Literature-Review(co.chat + custom Semantic Scholar Connector)", "Read Mode"])
 
 with tab1:
     st.header('Search powered by Cohere and Semantic Scholar', divider='rainbow')
