@@ -328,7 +328,7 @@ with tab1:
 
 with tab2:
     user_input = st.text_input("Enter the arxiv or acl anthology url of the paper",
-                               "https://arxiv.org/abs/2310.16787", key="input1")
+                               "https://aclanthology.org/2022.acl-short.50/", key="input1")
 
 
     def get_paper_content(url: str) -> tuple:
