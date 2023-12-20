@@ -59,294 +59,296 @@ st.info("""This Application currently only works with arxiv and acl anthology we
     1) Arxiv:- https://arxiv.org/abs/paper_unique_identifier
 
     2) ACL Anthology:- https://aclanthology.org/paper_unique_identifier/ 
+
+    Currently Disabled.
     """, icon="ℹ️")
-user_input_paper = st.text_input("Enter the arxiv or acl anthology url of the paper",
-                           "https://arxiv.org/abs/2310.16787", key="input2")
+# user_input_paper = st.text_input("Enter the arxiv or acl anthology url of the paper",
+#                            "https://arxiv.org/abs/2310.16787", key="input2")
 
 
-def reset_conversation():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Ask me a question about the research paper"}
-    ]
+# def reset_conversation():
+#     st.session_state.messages = [
+#         {"role": "assistant", "content": "Ask me a question about the research paper"}
+#     ]
 
 
-def get_sherpa_paper_content(url: str) -> List:
-    with st.spinner(text="Using LLM Sherpa's LayoutPDFReader to read the paper contents"):
-        try:
-            pdf_path = url_processor(url=url)
-            pdf_reader = LayoutPDFReader(llmsherpa_api_url)
-            doc = pdf_reader.read_pdf(path_or_url=pdf_path)
-            internal_chunks_list = []
-            for chunk in doc.chunks():
-                internal_chunks_list.append(chunk.to_context_text())
+# def get_sherpa_paper_content(url: str) -> List:
+#     with st.spinner(text="Using LLM Sherpa's LayoutPDFReader to read the paper contents"):
+#         try:
+#             pdf_path = url_processor(url=url)
+#             pdf_reader = LayoutPDFReader(llmsherpa_api_url)
+#             doc = pdf_reader.read_pdf(path_or_url=pdf_path)
+#             internal_chunks_list = []
+#             for chunk in doc.chunks():
+#                 internal_chunks_list.append(chunk.to_context_text())
 
-            return internal_chunks_list
+#             return internal_chunks_list
 
-        except Exception as e:
-            return []
-
-
-if st.button("Chat"):
-    chunks_list = get_sherpa_paper_content(url=user_input_paper)
-    if chunks_list:
-        with st.spinner(text="Indexing the documents"):
-            index_dir = get_vector_index(chunks_list=chunks_list)
-            if index_dir != "Error":
-                st.session_state.vector_store = index_dir
-            else:
-                st.write("Error occurred while indexing the documents")
-
-    else:
-        st.write("Error occurred while parsing and reading the documents")
-
-if st.session_state.vector_store is not None:
-    co = cohere.Client(COHERE_API_KEY)
-    service_context = ServiceContext.from_defaults(
-        llm=llm, embed_model=embed_model
-    )
-    index = load_index_from_storage(
-        StorageContext.from_defaults(persist_dir=st.session_state.vector_store),
-        service_context=service_context
-    )
-    query_engine = index.as_query_engine(
-        similarity_top_k=10,
-        node_postprocessors=[cohere_rerank],
-        response_mode="no_text"
-    )
-
-    custom_chat_history = []
-    for message in st.session_state.messages:
-        if message["role"] == "user":
-            custom_message = {"user_name": "User", "text": message["content"]}
-            custom_chat_history.append(custom_message)
-        elif message["role"] == "assistant":
-            custom_message = {"user_name": "Chatbot", "text": message["content"]}
-            custom_chat_history.append(custom_message)
-
-    prompt = st.chat_input(placeholder="Your question")
-
-    # Prompt for user input and save to chat history
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-    for message in st.session_state.messages:  # Display the prior chat messages
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-
-    if st.session_state.messages[-1]["role"] != "assistant":
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = query_engine.query(str(prompt))
-                    documents_list = []
-                    document_number = 0
-                    for node in response.source_nodes:
-                        local_dict = {"title": f"answer_candidate_{document_number}", "snippet": node.text}
-                        documents_list.append(local_dict)
-
-                    try:
-                        response_cohere = co.chat(
-                            prompt,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='off',
-                            documents=documents_list)
-                    except Exception as e:
-                        response_cohere = co.chat(
-                            prompt,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='AUTO',
-                            documents=documents_list)
-
-                    st.write(response_cohere.text)
-                    response_message = {"role": "assistant", "content": response_cohere.text}
-                    st.session_state.messages.append(response_message)
-
-                except Exception as e:
-                    st.write("Error Occurred")
-                    response_message = {"role": "assistant", "content": "Error Occurred"}
-                    st.session_state.messages.append(response_message)
-
-    st.button('Reset Chat', on_click=reset_conversation)
-
-st.divider()
+#         except Exception as e:
+#             return []
 
 
-tab1, tab2 = st.tabs(["Literature-Review(co.chat + custom Semantic Scholar Connector)", "Read Mode"])
+# if st.button("Chat"):
+#     chunks_list = get_sherpa_paper_content(url=user_input_paper)
+#     if chunks_list:
+#         with st.spinner(text="Indexing the documents"):
+#             index_dir = get_vector_index(chunks_list=chunks_list)
+#             if index_dir != "Error":
+#                 st.session_state.vector_store = index_dir
+#             else:
+#                 st.write("Error occurred while indexing the documents")
 
-with tab1:
-    st.header('Search powered by Cohere and Semantic Scholar', divider='rainbow')
-    user_input_search = st.text_input("Enter any query you have related to research/academic topics",
-                                      "Limitations of LLMs", key="input5")
+#     else:
+#         st.write("Error occurred while parsing and reading the documents")
 
-    web = st.checkbox('Web')
-    semantic_scholar = st.checkbox('Semantic Scholar')
+# if st.session_state.vector_store is not None:
+#     co = cohere.Client(COHERE_API_KEY)
+#     service_context = ServiceContext.from_defaults(
+#         llm=llm, embed_model=embed_model
+#     )
+#     index = load_index_from_storage(
+#         StorageContext.from_defaults(persist_dir=st.session_state.vector_store),
+#         service_context=service_context
+#     )
+#     query_engine = index.as_query_engine(
+#         similarity_top_k=10,
+#         node_postprocessors=[cohere_rerank],
+#         response_mode="no_text"
+#     )
 
+#     custom_chat_history = []
+#     for message in st.session_state.messages:
+#         if message["role"] == "user":
+#             custom_message = {"user_name": "User", "text": message["content"]}
+#             custom_chat_history.append(custom_message)
+#         elif message["role"] == "assistant":
+#             custom_message = {"user_name": "Chatbot", "text": message["content"]}
+#             custom_chat_history.append(custom_message)
 
-    def query_search_semantic_scholar(query, result_limit=10):
-        rsp = requests.get('https://api.semanticscholar.org/graph/v1/paper/search',
-                           headers={'X-API-KEY': S2_API_KEY},
-                           params={'query': query, 'limit': result_limit, 'fields': 'url,title,tldr,abstract'})
-        try:
+#     prompt = st.chat_input(placeholder="Your question")
 
-            rsp.raise_for_status()
-            results = rsp.json()
-            print(results)
-            total = results["total"]
-            if not total:
-                return 'No matches found. Please try another query.'
+#     # Prompt for user input and save to chat history
+#     if prompt:
+#         st.session_state.messages.append({"role": "user", "content": prompt})
 
-            try:
-                papers = results['data']
-                results_dict = {}
-                results_list = []
+#     for message in st.session_state.messages:  # Display the prior chat messages
+#         with st.chat_message(message["role"]):
+#             st.write(message["content"])
 
-                for paper in papers:
-                    local_dict = {}
-                    local_dict["title"] = paper["title"]
-                    local_dict["url"] = paper["url"]
-                    if paper["tldr"] != None and paper["tldr"]["text"] and paper["tldr"]["text"] != "":
-                        local_dict["snippet"] = paper["tldr"]["text"]
-                    elif paper["abstract"] != None:
-                        local_dict["snippet"] = paper["abstract"]
-                    else:
-                        local_dict["snippet"] = "No data found"
-                    results_list.append(local_dict)
+#     if st.session_state.messages[-1]["role"] != "assistant":
+#         with st.chat_message("assistant"):
+#             with st.spinner("Thinking..."):
+#                 try:
+#                     response = query_engine.query(str(prompt))
+#                     documents_list = []
+#                     document_number = 0
+#                     for node in response.source_nodes:
+#                         local_dict = {"title": f"answer_candidate_{document_number}", "snippet": node.text}
+#                         documents_list.append(local_dict)
 
-                results_dict["results"] = results_list
+#                     try:
+#                         response_cohere = co.chat(
+#                             prompt,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='off',
+#                             documents=documents_list)
+#                     except Exception as e:
+#                         response_cohere = co.chat(
+#                             prompt,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='AUTO',
+#                             documents=documents_list)
 
-                return results_dict
-            except Exception as e:
-                return 'No matches found. Please try another query.'
+#                     st.write(response_cohere.text)
+#                     response_message = {"role": "assistant", "content": response_cohere.text}
+#                     st.session_state.messages.append(response_message)
 
-        except Exception as e:
-            return "Limit Exceeded"
+#                 except Exception as e:
+#                     st.write("Error Occurred")
+#                     response_message = {"role": "assistant", "content": "Error Occurred"}
+#                     st.session_state.messages.append(response_message)
 
+#     st.button('Reset Chat', on_click=reset_conversation)
 
-    if st.button("Search"):
-        with st.spinner(text="Searching for an Answer using LLMs powered by Cohere"):
-            co = cohere.Client(COHERE_API_KEY)
-            try:
-                if web and semantic_scholar:
-                    try:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='off',
-                            citation_quality='accurate',
-                            connectors=[{"id":"semanticscholar-08yt70"},
-                                        {"id":"web-search"}]
-                            )
-                    except Exception as e:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='AUTO',
-                            citation_quality='accurate',
-                            connectors=[{"id": "semanticscholar-08yt70"},
-                                        {"id": "web-search"}]
-                            )
-                elif web==False and semantic_scholar==True:
-                    try:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='off',
-                            citation_quality='accurate',
-                            connectors=[{"id":"semanticscholar-08yt70"}]
-                            )
-                    except Exception as e:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='AUTO',
-                            citation_quality='accurate',
-                            connectors=[{"id": "semanticscholar-08yt70"}]
-                            )
-                elif web==True and semantic_scholar==False:
-                    try:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='off',
-                            citation_quality='accurate',
-                            connectors=[{"id": "web-search"}]
-                        )
-                    except Exception as e:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='AUTO',
-                            citation_quality='accurate',
-                            connectors=[{"id": "web-search"}]
-                            )
-
-                else:
-                    try:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='off',
-                            )
-                    except Exception as e:
-                        response_search_cohere = co.chat(
-                            user_input_search,
-                            model="command-nightly",
-                            temperature=0.3,
-                            prompt_truncation='AUTO',
-                            )
-
-                st.write(response_search_cohere.text)
-                with st.expander("See Citations"):
-                    try:
-                        st.write(response_search_cohere.citations)
-
-                    except Exception as e:
-                        print(str(e))
-                        st.write("No Citations found")
-
-                with st.expander("See Semantic Scholar results"):
-                    try:
-                        st.write(query_search_semantic_scholar(query=user_input_search))
-
-                    except Exception as e:
-                        print(str(e))
-                        st.write("No Citations found")
-
-            except Exception as e:
-                print(str(e))
-                st.write("Error Occurred")
+# st.divider()
 
 
-with tab2:
-    user_input = st.text_input("Enter the arxiv or acl anthology url of the paper",
-                               "https://aclanthology.org/2022.acl-short.50/", key="input1")
+# tab1, tab2 = st.tabs(["Literature-Review(co.chat + custom Semantic Scholar Connector)", "Read Mode"])
+
+# with tab1:
+#     st.header('Search powered by Cohere and Semantic Scholar', divider='rainbow')
+#     user_input_search = st.text_input("Enter any query you have related to research/academic topics",
+#                                       "Limitations of LLMs", key="input5")
+
+#     web = st.checkbox('Web')
+#     semantic_scholar = st.checkbox('Semantic Scholar')
 
 
-    def get_paper_content(url: str) -> tuple:
-        with st.spinner(text="Using Nougat(https://facebookresearch.github.io/nougat/) to read the paper contents and get the markdown representation of the paper"):
-            try:
-                f = modal.Function.lookup("streamlit-hack", "main")
-                output = f.call(url)
-                st.session_state.paper_content = output
+#     def query_search_semantic_scholar(query, result_limit=10):
+#         rsp = requests.get('https://api.semanticscholar.org/graph/v1/paper/search',
+#                            headers={'X-API-KEY': S2_API_KEY},
+#                            params={'query': query, 'limit': result_limit, 'fields': 'url,title,tldr,abstract'})
+#         try:
 
-            except Exception as e:
-                output = "Error Occurred"
-                st.session_state.paper_content = output
+#             rsp.raise_for_status()
+#             results = rsp.json()
+#             print(results)
+#             total = results["total"]
+#             if not total:
+#                 return 'No matches found. Please try another query.'
 
-            return output
+#             try:
+#                 papers = results['data']
+#                 results_dict = {}
+#                 results_list = []
 
-    if st.button("Read the paper"):
-        paper_content = get_paper_content(url=user_input)
+#                 for paper in papers:
+#                     local_dict = {}
+#                     local_dict["title"] = paper["title"]
+#                     local_dict["url"] = paper["url"]
+#                     if paper["tldr"] != None and paper["tldr"]["text"] and paper["tldr"]["text"] != "":
+#                         local_dict["snippet"] = paper["tldr"]["text"]
+#                     elif paper["abstract"] != None:
+#                         local_dict["snippet"] = paper["abstract"]
+#                     else:
+#                         local_dict["snippet"] = "No data found"
+#                     results_list.append(local_dict)
 
-    if st.session_state.paper_content is not None:
-        with st.expander("See Paper Contents"):
-            st.write(st.session_state.paper_content)
+#                 results_dict["results"] = results_list
+
+#                 return results_dict
+#             except Exception as e:
+#                 return 'No matches found. Please try another query.'
+
+#         except Exception as e:
+#             return "Limit Exceeded"
+
+
+#     if st.button("Search"):
+#         with st.spinner(text="Searching for an Answer using LLMs powered by Cohere"):
+#             co = cohere.Client(COHERE_API_KEY)
+#             try:
+#                 if web and semantic_scholar:
+#                     try:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='off',
+#                             citation_quality='accurate',
+#                             connectors=[{"id":"semanticscholar-08yt70"},
+#                                         {"id":"web-search"}]
+#                             )
+#                     except Exception as e:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='AUTO',
+#                             citation_quality='accurate',
+#                             connectors=[{"id": "semanticscholar-08yt70"},
+#                                         {"id": "web-search"}]
+#                             )
+#                 elif web==False and semantic_scholar==True:
+#                     try:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='off',
+#                             citation_quality='accurate',
+#                             connectors=[{"id":"semanticscholar-08yt70"}]
+#                             )
+#                     except Exception as e:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='AUTO',
+#                             citation_quality='accurate',
+#                             connectors=[{"id": "semanticscholar-08yt70"}]
+#                             )
+#                 elif web==True and semantic_scholar==False:
+#                     try:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='off',
+#                             citation_quality='accurate',
+#                             connectors=[{"id": "web-search"}]
+#                         )
+#                     except Exception as e:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='AUTO',
+#                             citation_quality='accurate',
+#                             connectors=[{"id": "web-search"}]
+#                             )
+
+#                 else:
+#                     try:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='off',
+#                             )
+#                     except Exception as e:
+#                         response_search_cohere = co.chat(
+#                             user_input_search,
+#                             model="command-nightly",
+#                             temperature=0.3,
+#                             prompt_truncation='AUTO',
+#                             )
+
+#                 st.write(response_search_cohere.text)
+#                 with st.expander("See Citations"):
+#                     try:
+#                         st.write(response_search_cohere.citations)
+
+#                     except Exception as e:
+#                         print(str(e))
+#                         st.write("No Citations found")
+
+#                 with st.expander("See Semantic Scholar results"):
+#                     try:
+#                         st.write(query_search_semantic_scholar(query=user_input_search))
+
+#                     except Exception as e:
+#                         print(str(e))
+#                         st.write("No Citations found")
+
+#             except Exception as e:
+#                 print(str(e))
+#                 st.write("Error Occurred")
+
+
+# with tab2:
+#     user_input = st.text_input("Enter the arxiv or acl anthology url of the paper",
+#                                "https://aclanthology.org/2022.acl-short.50/", key="input1")
+
+
+#     def get_paper_content(url: str) -> tuple:
+#         with st.spinner(text="Using Nougat(https://facebookresearch.github.io/nougat/) to read the paper contents and get the markdown representation of the paper"):
+#             try:
+#                 f = modal.Function.lookup("streamlit-hack", "main")
+#                 output = f.call(url)
+#                 st.session_state.paper_content = output
+
+#             except Exception as e:
+#                 output = "Error Occurred"
+#                 st.session_state.paper_content = output
+
+#             return output
+
+#     if st.button("Read the paper"):
+#         paper_content = get_paper_content(url=user_input)
+
+#     if st.session_state.paper_content is not None:
+#         with st.expander("See Paper Contents"):
+#             st.write(st.session_state.paper_content)
